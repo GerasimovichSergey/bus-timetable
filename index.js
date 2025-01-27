@@ -13,6 +13,8 @@ const timeZone = 'UTC'
 const port = 3000;
 const app = express();
 
+app.use(express.static(path.join(__dirname, 'public')));
+
 const loadBuses = async () => {
     const data = await readFile(path.join(__dirname, 'buses.json'), 'utf-8');
     return JSON.parse(data);
@@ -53,7 +55,7 @@ const sendUpdatedData = async () => {
         return {
             ...bus,
             nextDeparture: {
-                data: nextDeparture.toFormat('yyyy-MM-dd'),
+                date: nextDeparture.toFormat('yyyy-MM-dd'),
                 time: nextDeparture.toFormat('HH:mm:ss'),
             }
         }
@@ -62,17 +64,19 @@ const sendUpdatedData = async () => {
     return updatedBuses;
 };
 
-const sortBuses = (a, b) => {
-    const aBus = DateTime.fromISO(`${a.nextDeparture.data}T${a.nextDeparture.time}`).setZone(timeZone);
-    const bBus = DateTime.fromISO(`${b.nextDeparture.data}T${b.nextDeparture.time}`).setZone(timeZone);
+const sortBuses = (buses) => {
+    return [...buses].sort((a, b) => {
+        const aBusDateTime = DateTime.fromISO(`${a.nextDeparture.date}T${a.nextDeparture.time}Z`);
+        const bBusDateTime = DateTime.fromISO(`${b.nextDeparture.date}T${b.nextDeparture.time}Z`);
 
-    return aBus - bBus;
+        return aBusDateTime - bBusDateTime;
+    });
 };
 
 app.get('/next-departure', async (req, res) => {
     try {
         const updatedBuses = await sendUpdatedData();
-        const sortDepartureBusses = updatedBuses.sort(sortBuses);
+        const sortDepartureBusses = sortBuses(updatedBuses);
 
         res.json(sortDepartureBusses);
     } catch {
